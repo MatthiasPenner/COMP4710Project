@@ -1,0 +1,30 @@
+pdfsize: [-1,23816]
+metadata: [-1, 77185]
+pages: [-1,595]
+xref Length: [-1,263987]
+title characters: [-1,76993]
+isEncrypted: [-1, 4]
+embedded files: [-1, 5]
+images:
+obj:
+endobj:
+stream:[-1,812]
+endstream:
+xref:
+trailer:[-1,46]
+startxref:
+pageno:
+encrypt:[-1,2]
+ObjStm:[-1,600]
+JS:
+Javascript:
+AA:
+OpenAction:
+Acroform:
+JBIG2Decode:
+RichMedia:
+launch:
+EmbeddedFile:
+XFA:
+Colors: [-1,5682]
+
