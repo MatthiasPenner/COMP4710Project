@@ -5,7 +5,7 @@ input_file_path = 'PDFMalware2022.csv'
 output_file_path = 'PDFMalware2022Grepped.csv'
 
 # Define the file containing the patterns to exclude
-exclude_file_path = 'ranges2'
+exclude_file_path = 'keywords'
 
 # Open the input and exclude files
 with open(input_file_path, 'r') as input_file, open(exclude_file_path, 'r') as exclude_file:
