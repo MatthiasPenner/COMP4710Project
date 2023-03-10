@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
 
 
-def ibgsa(csv_path, iterations, G0, Gf, alpha, beta, classifier):
+def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     # Load data from CSV file
     data = pd.read_csv(csv_path)
 
@@ -26,11 +26,11 @@ def ibgsa(csv_path, iterations, G0, Gf, alpha, beta, classifier):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
 
     # Initialize population
-    m = 20
-    n = X.shape[1]
-    r = np.random.rand(m, n)
+    mass = 20
+    n = X.shape[1]                      # Total # Features
+    r = np.random.rand(mass, n)         # Random Number between mass + n features
     r_bin = np.round(r)
-    fitness_vals = np.zeros(m)
+    fitness_vals = np.zeros(mass)
     best_fitness = -np.inf
     best_solution = np.zeros(n)
 
@@ -54,12 +54,13 @@ def ibgsa(csv_path, iterations, G0, Gf, alpha, beta, classifier):
         tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
         fp_indices = np.where((y_test == 0) & (y_pred == 1))[0]
         fn_indices = np.where((y_test == 1) & (y_pred == 0))[0]
+
         return (tp + tn) / (tp + tn + fp + fn), fp_indices, fn_indices
 
     # Main loop
     for t in range(iterations):
         # Calculate fitness of each solution
-        for i in range(m):
+        for i in range(mass):
             fitness_vals[i], false_positives, false_negatives = fitness(r_bin[i, :])
             if fitness_vals[i] > best_fitness:
                 best_fitness = fitness_vals[i]
@@ -68,22 +69,19 @@ def ibgsa(csv_path, iterations, G0, Gf, alpha, beta, classifier):
                 best_false_negatives = false_negatives
 
         # Update gravity
-        G = G0 - t * (G0 - Gf) / iterations
+        G = G0 * (1 - (t/iterations))
 
-        # Calculate gravitational forces
-        F = np.zeros((m, n))
-        for i in range(m):
-            for j in range(n):
-                for k in range(m):
-                    if k != i:
-                        d = np.sum((r_bin[i, j] - r_bin[k, j]) ** 2)
-                        F[i, j] += (r_bin[k, j] - r_bin[i, j]) * fitness_vals[k] / (d + 1e-10)
-
-        # Update positions
-        r_bin_new = np.zeros((m, n))
-        for i in range(m):
+        # Update positions and calculate forces
+        r_bin_new = np.zeros((mass, n))
+        F = np.zeros((mass, n))
+        for i in range(mass):
             for j in range(n):
                 is_elite = fitness_vals[i]
+                for k in range(mass):
+                    if k != i:
+                        d = np.sum((r_bin[i, j] - r_bin[k, j]) ** 2)
+                        d_norm = np.sum(r_bin[i, :] != r_bin[k, :]) / max(np.sum(r_bin[i, :]), np.sum(r_bin[k, :]))
+                        F[i, j] += (r_bin[k, j] - r_bin[i, j]) * fitness_vals[k] / ((d_norm + 1e-10) * (d + 1e-10) ** 0.5)
                 r_bin_new[i, j] = np.round(r_bin[i, j] + is_elite * alpha * np.exp(-beta * G) * F[i, j])
                 if r_bin_new[i, j] > 1:
                     r_bin_new[i, j] = 1
@@ -112,13 +110,13 @@ def ibgsa(csv_path, iterations, G0, Gf, alpha, beta, classifier):
 
 
 start_time = time.time()
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', iterations=100, G0=10, Gf=0.1, alpha=0.1, beta=10, classifier='dt')
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', iterations=100, G0=10, alpha=0.1, beta=10, classifier='dt')
 end_time = time.time()
 print("Time taken: {:.2f} seconds".format(end_time - start_time))
 
 print("===========")
 
 start_time = time.time()
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 0.1, 10, 'rf')
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 'rf')
 end_time = time.time()
 print("Time taken: {:.2f} seconds".format(end_time - start_time))
