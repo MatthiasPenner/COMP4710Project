@@ -2,11 +2,14 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import classification_report
+from sklearn.model_selection import KFold
+import time
 
-officialIBGSA = False
+
+MAX_VALUE = 2
 
 def report(y_test, y_pred):
     tp, tn, fp, fn = 0, 0, 0, 0
@@ -27,7 +30,7 @@ def report(y_test, y_pred):
     acc = (tp+tn)/(tp+tn+fp+fn)
     print(f"DR: {dr} FPR: {fpr} Acc: {acc}")
 
-def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
+def ibgsa(X, y, n_agents, max_iter, G=6.6743, eps=0.01, k1 = 3, k2 = 13):
     # Initialization
     n_features = X.shape[1]
     agents = np.random.randint(2, size=(n_agents, n_features))
@@ -40,6 +43,9 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
     failures = 0
     prev_best_agent = np.zeros(n_features, dtype=int)
 
+    best_agents = np.ones(n_agents)
+    modified_fitness = np.ones(n_agents)
+
     # Main loop
     for t in range(max_iter):
         currentGravity = G*(1-t/max_iter)
@@ -50,8 +56,10 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
             selected_features = X.iloc[:, agent == 1]
 
             X_train, X_test, y_train, y_test = train_test_split(selected_features, y, test_size=0.3, random_state=42)
-            clf = DecisionTreeClassifier()
 
+            # Classifier change here
+            # clf = DecisionTreeClassifier()
+            clf = RandomForestClassifier()
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             fitness[i] = accuracy_score(y_test, y_pred)
@@ -61,9 +69,19 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
                 prev_best_agent = best_agent.copy()
                 best_agent = agents[i].copy()
                 best_fitness = fitness[i]
+                best_classifier = clf
 
             if fitness [i] < worst_fitness:
                 worst_fitness = fitness[i]
+
+        if t/2 == 0:
+            # Sort agents by fitness
+            modified_fitness = [fitness[i] if best_agents[i] == 1 else MAX_VALUE for i in range(len(fitness))]   
+            worst_agent_index = np.argmin(modified_fitness)
+            if best_agents[worst_agent_index] != 0:
+                best_agents[worst_agent_index] = 0
+            else:
+                print("You fucked up")
 
         # Update mass of each agent
         mk = (fitness-worst_fitness)/(best_fitness-worst_fitness)
@@ -78,48 +96,38 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
         force = np.zeros((n_agents, n_features))
         for i in range(n_agents):
             for j in range(n_agents):
-                if i == j:
+                if i == j or best_agents[j] == 0:
                     continue
                 # normalize hamming distance by dividing number of features
                 distance = np.count_nonzero(agents[i]!=agents[j]) / n_features
-                # print(f"Distance computed is {distance1} vs {distance}")
                 force[i] += np.random.rand() * currentGravity * mass[i] * mass[j] / (distance + eps) * (agents[j] - agents[i])
-            # print(f"total force on agent {i} is {np.sum(force[i])}")
+
         # Update position of each agent
         for i in range(n_agents):
             if mass[i] == 0:
                 print(f"No mass for agent {i}")
                 continue
-            # print(f"Agent {i}: force: {force[i]} mass: {mass[i]}")
             acceleration = force[i] / mass[i]
+            velocity = np.random.rand() * velocity + acceleration
+            velocity[velocity > 6] = 6
 
-            if officialIBGSA: #currently broken
-                velocity = np.random.rand() * velocity + acceleration
-                # print(f"Velocity of agent {i} before limit is {velocity}")
-                velocity[velocity > 6] = 6
-                # print(f"Velocity of agent {i} after limit is {velocity}")
+            A = k1 * (1 - np.exp(failures / k2))
 
-                A = k1 * (1 - np.exp(failures / k2))
+            ftemp = A + (1-A) * np.absolute(np.tanh(velocity))
 
-                ftemp = A + (1-A) * np.absolute(np.tanh(velocity))
+            new_position = agents[i].copy()
 
-                new_position = agents[i].copy()
-
-                for pos in range(len(agents[i])):
-                    if np.random.rand() < ftemp[pos]:
-                        # print(f"Flipping agent {i} ")
-                        new_position[pos] = 0 if agents[pos] == 1 else 1
-
-            else:
-                velocity = np.random.uniform(low=-eps, high=eps, size=n_features) + acceleration
-                new_position = np.logical_xor(agents[i], np.random.binomial(1, np.abs(velocity))).astype(int)
+            for pos in range(len(agents[i])):
+                if np.random.rand() < ftemp[pos]:
+                    new_position[pos] = 0 if agents[i][pos] == 1 else 1
 
 
             selected_features = X.iloc[:, new_position == 1]
 
             X_train, X_test, y_train, y_test = train_test_split(selected_features, y, test_size=0.3, random_state=42)
-            clf = DecisionTreeClassifier()
 
+            # Classifier change here
+            clf = RandomForestClassifier()
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             new_fitness = accuracy_score(y_test, y_pred)
@@ -128,31 +136,42 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743e-11, eps=0.01, k1 = 3, k2 = 13):
                 agents[i] = new_position
 
         print(f"Fitness value: {best_fitness} from agent {best_agent} ")
-    return best_agent
+    return best_agent, best_classifier
+
+start_time = time.time()
 
 # Load data from CSV file
 df = pd.read_csv('PDFMalware2022v2.csv')
 le = LabelEncoder()
 df = df.apply(lambda col: le.fit_transform(col) if col.dtype == object else col)
 
+kf = KFold(n_splits=10, shuffle = True)
+scores = []
+
 # Separate features and target variable
 X = df.drop('Class', axis=1)
 y = df['Class']
 
-# Run IBGSA to select relevant features
-selected_features = ibgsa(X, y, n_agents=50, max_iter=100)
+for train_index, test_index in kf.split(X):
 
-# Print selected features
-print("Selected Features:")
-print(selected_features)
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
-# Train and test model using selected features
-selected_X = X.iloc[:, selected_features == 1]
-X_train, X_test, y_train, y_test = train_test_split(selected_X, y, test_size=0.3, random_state=42)
-clf = DecisionTreeClassifier()
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Classification Report:")
-print(classification_report(y_test, y_pred, target_names=le.classes_))
-report(y_test, y_pred)
+    # Run IBGSA to select relevant features
+    selected_features, selected_classifier = ibgsa(X_train, y_train, n_agents=50, max_iter=100)
+
+    # Print selected features
+    print("Selected Features:")
+    print(selected_features)
+
+    # Train and test model using selected features
+    selected_X_test = X_test.iloc[:, selected_features == 1]
+    y_pred = selected_classifier.predict(selected_X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    scores.append(accuracy)
+
+    print("--- %s seconds --- after an iteration" % (time.time() - start_time))
+
+average_score = np.mean(scores)
+print("Average accuracy:", average_score)
