@@ -5,6 +5,8 @@ cols = len(df.columns)
 dict = {}
 malicious = 0
 isMalicious = 0
+falsePositive = 0
+falseNegative = 0
 
 
 for i in range(len(df)):
@@ -39,11 +41,23 @@ for i in range(len(df)):
     #Get the average confidence for entry
     entry /= cols
 
-    #If average confidence for entry > 50% = malicious
-    if(entry > 0.50):
-            isMalicious += 1
+    #If average confidence for entry >= 50% = malicious
+    if(entry >= 0.50):
+        isMalicious += 1
+
+    #False positive (Detected malicious but is benign)
+    if(entry >= 0.50 and df.iloc[i,0] == 0):
+        falsePositive += 1
+
+    #False negative (Detected benign but is malicious)
+    if(entry < 0.50 and df.iloc[i,0] == 1):
+        falseNegative += 1
+
+accuracy = ((isMalicious - falsePositive) / malicious) * 100
 
 #Print results
 print("# of actual malicious: "+ str(malicious))
 print("# detected to be malicious: " + str(isMalicious))
-
+print("# of false positives: " + str(falsePositive))
+print("# of false negatives: " + str(falseNegative))
+print("Accuracy: " + str(accuracy) + "%")
