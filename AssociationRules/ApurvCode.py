@@ -7,29 +7,43 @@ malicious = 0
 isMalicious = 0
 
 
-for i in range(5000):
+for i in range(len(df)):
     entry = 0
+
+    #Check if entry is malicious from csv
     if(df.iloc[i,0] == 1):
         malicious += 1
 
     for j in range(1,cols):
+        total = 0
+        count = 0
+        #Check if count for the interval already exists - else add to dictionary
         if (df.columns[j]+str(df.iloc[i,j])) in dict:
             count = dict.get(df.columns[j]+str(df.iloc[i,j]))
         else:
             count = df.value_counts(df.columns[j])[df.iloc[i,j]]
             dict.__setitem__(df.columns[j]+str(df.iloc[i,j]), count)
 
-        if (df.columns[j] + str(df.iloc[i,j]) + "Class") in dict:
-            total = dict.get(df.columns[j] + str(df.iloc[i,j]) + "Class")
-        else:
-            total = df.value_counts([df.columns[j], "Class"])[df.iloc[i,j],1]
-            dict.__setitem__(df.columns[j] + str(df.iloc[i,j]) + "Class",total)
+        #Check if count for interval AND Class==1 exists - else add to dictionary
+        if(df.iloc[i,0] == 1):
+            if (df.columns[j] + str(df.iloc[i,j]) + "Class") in dict:
+                total = dict.get(df.columns[j] + str(df.iloc[i,j]) + "Class")
+            else:
+                total = df.value_counts([df.columns[j], "Class"])[df.iloc[i,j],1]
+                dict.__setitem__(df.columns[j] + str(df.iloc[i,j]) + "Class",total)
+
+        #Add up confidence for entry
         confidence = total/count
         entry += confidence
+
+    #Get the average confidence for entry
     entry /= cols
+
+    #If average confidence for entry > 50% = malicious
     if(entry > 0.50):
             isMalicious += 1
-    
+
+#Print results
 print("# of actual malicious: "+ str(malicious))
 print("# detected to be malicious: " + str(isMalicious))
 
