@@ -7,6 +7,7 @@ malicious = 0
 isMalicious = 0
 falsePositive = 0
 falseNegative = 0
+minConf = 0.50
 
 
 for i in range(len(df)):
@@ -27,12 +28,11 @@ for i in range(len(df)):
             dict.__setitem__(df.columns[j]+str(df.iloc[i,j]), count)
 
         #Check if count for interval AND Class==1 exists - else add to dictionary
-        if(df.iloc[i,0] == 1):
-            if (df.columns[j] + str(df.iloc[i,j]) + "Class") in dict:
-                total = dict.get(df.columns[j] + str(df.iloc[i,j]) + "Class")
-            else:
-                total = df.value_counts([df.columns[j], "Class"])[df.iloc[i,j],1]
-                dict.__setitem__(df.columns[j] + str(df.iloc[i,j]) + "Class",total)
+        if (df.columns[j] + str(df.iloc[i,j]) + "Class") in dict:
+            total = dict.get(df.columns[j] + str(df.iloc[i,j]) + "Class")
+        elif(df.iloc[i,0] == 1):
+            total = df.value_counts([df.columns[j], "Class"])[df.iloc[i,j],1]
+            dict.__setitem__(df.columns[j] + str(df.iloc[i,j]) + "Class",total)
 
         #Add up confidence for entry
         confidence = total/count
@@ -41,19 +41,19 @@ for i in range(len(df)):
     #Get the average confidence for entry
     entry /= cols
 
-    #If average confidence for entry >= 50% = malicious
-    if(entry >= 0.50):
+    #If average confidence for entry >= minConf = malicious
+    if(entry >= minConf):
         isMalicious += 1
 
     #False positive (Detected malicious but is benign)
-    if(entry >= 0.50 and df.iloc[i,0] == 0):
+    if(entry >= minConf and df.iloc[i,0] == 0):
         falsePositive += 1
 
     #False negative (Detected benign but is malicious)
-    if(entry < 0.50 and df.iloc[i,0] == 1):
+    if(entry < minConf and df.iloc[i,0] == 1):
         falseNegative += 1
 
-accuracy = ((isMalicious - falsePositive) / malicious) * 100
+accuracy = ((isMalicious - falsePositive - falseNegative) / malicious) * 100
 
 #Print results
 print("# of actual malicious: "+ str(malicious))
