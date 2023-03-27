@@ -1,5 +1,5 @@
 import pandas as pd
-
+import time
 df = pd.read_csv("Labels_v2.csv")
 cols = len(df.columns)
 dict = {}
@@ -10,7 +10,7 @@ trueNegative = 0
 falsePositive = 0
 falseNegative = 0
 minConf = 0.55
-
+start_time = time.time()
 
 for i in range(len(df)):
     entry = 0
@@ -64,6 +64,7 @@ for i in range(len(df)):
         falseNegative += 1
 
 accuracy = ((truePositive+trueNegative)/(truePositive+trueNegative+falsePositive+falseNegative))*100
+end_time = time.time()
 
 #Print results
 print("# of actual malicious: "+ str(malicious))
@@ -73,3 +74,4 @@ print("# of true negatives: " + str(trueNegative))
 print("# of false positives: " + str(falsePositive))
 print("# of false negatives: " + str(falseNegative))
 print("Accuracy: " + str(accuracy) + "%")
+print("Time taken: {:.2f} seconds".format(end_time - start_time))
