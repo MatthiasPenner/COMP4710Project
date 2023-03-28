@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 
-df = pd.read_csv("Labels_QCut.csv")
+df = pd.read_csv("Labels.csv")
 cols = len(df.columns)
 dict = {}
 malicious = 0
@@ -68,6 +68,7 @@ accuracy = ((truePositive+trueNegative)/(truePositive+trueNegative+falsePositive
 end_time = time.time()
 
 #Print results
+print("Minimum Confidence: " + str(minConf*100) + "%")
 print("# of actual malicious: "+ str(malicious))
 print("# detected to be malicious: " + str(isMalicious))
 print("# of true positives: " + str(truePositive))

@@ -1,0 +1,50 @@
+All Features Using Manual Bins
+==============================
+Minimum Confidence: 55.00000000000001%
+# of actual malicious: 5520
+# detected to be malicious: 5601
+# of true positives: 5222
+# of true negatives: 4087
+# of false positives: 379
+# of false negatives: 298
+Accuracy: 93.22050871219709%
+Time taken: 19.40 seconds
+
+All Features Using QCut
+========================
+Minimum Confidence: 55.00000000000001%
+# of actual malicious: 5469
+# detected to be malicious: 5371
+# of true positives: 5151
+# of true negatives: 4240
+# of false positives: 220
+# of false negatives: 318
+Accuracy: 94.58152885486957%
+Time taken: 19.09 seconds
+
+
+General Features Using QCut
+===========================
+Minimum Confidence: 55.00000000000001%
+# of actual malicious: 5469
+# detected to be malicious: 4701
+# of true positives: 4621
+# of true negatives: 4380
+# of false positives: 80
+# of false negatives: 848
+Accuracy: 90.65364085003526%
+Time taken: 6.43 seconds
+
+Structural Features Using QCut
+==============================
+Minimum Confidence: 55.00000000000001%
+# of actual malicious: 5469
+# detected to be malicious: 5436
+# of true positives: 4894
+# of true negatives: 3918
+# of false positives: 542
+# of false negatives: 575
+Accuracy: 88.75012589384632%
+Time taken: 12.81 seconds
+
+
