@@ -10,6 +10,7 @@ import time
 
 
 MAX_VALUE = 2
+USE_RANDOM_FOREST = True
 
 def report(y_test, y_pred):
     tp, tn, fp, fn = 0, 0, 0, 0
@@ -58,8 +59,10 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743, eps=0.01, k1 = 3, k2 = 13):
             X_train, X_test, y_train, y_test = train_test_split(selected_features, y, test_size=0.3, random_state=42)
 
             # Classifier change here
-            # clf = DecisionTreeClassifier()
-            clf = RandomForestClassifier()
+            if USE_RANDOM_FOREST:
+                clf = RandomForestClassifier()
+            else:
+                clf = DecisionTreeClassifier()
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             fitness[i] = accuracy_score(y_test, y_pred)
@@ -127,7 +130,10 @@ def ibgsa(X, y, n_agents, max_iter, G=6.6743, eps=0.01, k1 = 3, k2 = 13):
             X_train, X_test, y_train, y_test = train_test_split(selected_features, y, test_size=0.3, random_state=42)
 
             # Classifier change here
-            clf = RandomForestClassifier()
+            if USE_RANDOM_FOREST:
+                clf = RandomForestClassifier()
+            else:
+                clf = DecisionTreeClassifier()
             clf.fit(X_train, y_train)
             y_pred = clf.predict(X_test)
             new_fitness = accuracy_score(y_test, y_pred)
@@ -174,4 +180,5 @@ for train_index, test_index in kf.split(X):
     print("--- %s seconds --- after an iteration" % (time.time() - start_time))
 
 average_score = np.mean(scores)
+print(f"Using classifier {'Random forest' if USE_RANDOM_FOREST else 'Decision Tree'}" )
 print("Average accuracy:", average_score)
