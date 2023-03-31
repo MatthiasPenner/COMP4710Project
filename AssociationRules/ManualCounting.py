@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 
-df = pd.read_csv("Labels.csv")
+df = pd.read_csv("Labels_QCut_Structural.csv")
 cols = len(df.columns)
 dict = {}
 malicious = 0
@@ -12,6 +12,9 @@ falsePositive = 0
 falseNegative = 0
 minConf = 0.55
 start_time = time.time()
+
+def perc_format(num):
+    return '{:.2f}%'.format(round(num*100,2))
 
 for i in range(len(df)):
     entry = 0
@@ -64,16 +67,28 @@ for i in range(len(df)):
     if(entry < minConf and df.iloc[i,0] == 1):
         falseNegative += 1
 
-accuracy = ((truePositive+trueNegative)/(truePositive+trueNegative+falsePositive+falseNegative))*100
+#Calculate Stats
+minConf = perc_format(minConf)
+accuracy = ((truePositive+trueNegative)/(truePositive+trueNegative+falsePositive+falseNegative))
+accuracy = perc_format(accuracy)
+precision = truePositive/(truePositive+falsePositive)
+recall = truePositive/(truePositive+falseNegative)
+f1 = (2*precision*recall)/(precision+recall)
+f1 = '{:.2f}'.format(round(f1,2))
+detectionRate = truePositive/(truePositive+falseNegative)
+detectionRate = perc_format(detectionRate)
+
 end_time = time.time()
 
 #Print results
-print("Minimum Confidence: " + str(minConf*100) + "%")
+print("Minimum Confidence: " + str(minConf))
 print("# of actual malicious: "+ str(malicious))
 print("# detected to be malicious: " + str(isMalicious))
 print("# of true positives: " + str(truePositive))
 print("# of true negatives: " + str(trueNegative))
 print("# of false positives: " + str(falsePositive))
 print("# of false negatives: " + str(falseNegative))
-print("Accuracy: " + str(accuracy) + "%")
+print("Accuracy: " + str(accuracy))
+print("F1 Score: " + str(f1))
+print("Detection Rate: " + str(detectionRate))
 print("Time taken: {:.2f} seconds".format(end_time - start_time))
