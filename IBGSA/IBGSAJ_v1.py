@@ -27,12 +27,15 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
 
     # Initialize population
     mass = 20
-    n = X.shape[1]                      # Total # Features
-    r = np.random.rand(mass, n)         # Random Number between mass + n features
+    n = X.shape[1]  # Total # Features
+    r = np.random.rand(mass, n)  # Random Number between mass + n features
     r_bin = np.round(r)
     fitness_vals = np.zeros(mass)
     best_fitness = -np.inf
     best_solution = np.zeros(n)
+
+    def perc_format(num):
+        return '{:.2f}%'.format(round(num * 100, 2))
 
     def fitness(solution):
         # Extract selected features
@@ -52,24 +55,24 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
         # Evaluate classifier accuracy on test set
         y_pred = clf.predict(X_test_selected)
         tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
-        fp_indices = np.where((y_test == 0) & (y_pred == 1))[0]
-        fn_indices = np.where((y_test == 1) & (y_pred == 0))[0]
 
-        return (tp + tn) / (tp + tn + fp + fn), fp_indices, fn_indices
+        return (tp + tn) / (tp + tn + fp + fn), fp, fn, tn, tp
 
     # Main loop
     for t in range(iterations):
         # Calculate fitness of each solution
         for i in range(mass):
-            fitness_vals[i], false_positives, false_negatives = fitness(r_bin[i, :])
+            fitness_vals[i], fp, fn, tn, tp = fitness(r_bin[i, :])
             if fitness_vals[i] > best_fitness:
                 best_fitness = fitness_vals[i]
                 best_solution = r_bin[i, :]
-                best_false_positives = false_positives
-                best_false_negatives = false_negatives
+                best_false_positives = fp
+                best_false_negatives = fn
+                best_true_positives = tp
+                best_true_negatives = tn
 
         # Update gravity
-        G = G0 * (1 - (t/iterations))
+        G = G0 * (1 - (t / iterations))
 
         # Update positions and calculate forces
         r_bin_new = np.zeros((mass, n))
@@ -81,7 +84,8 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
                     if k != i:
                         d = np.sum((r_bin[i, j] - r_bin[k, j]) ** 2)
                         d_norm = np.sum(r_bin[i, :] != r_bin[k, :]) / max(np.sum(r_bin[i, :]), np.sum(r_bin[k, :]))
-                        F[i, j] += (r_bin[k, j] - r_bin[i, j]) * fitness_vals[k] / ((d_norm + 1e-10) * (d + 1e-10) ** 0.5)
+                        F[i, j] += (r_bin[k, j] - r_bin[i, j]) * fitness_vals[k] / (
+                                    (d_norm + 1e-10) * (d + 1e-10) ** 0.5)
                 r_bin_new[i, j] = np.round(r_bin[i, j] + is_elite * alpha * np.exp(-beta * G) * F[i, j])
                 if r_bin_new[i, j] > 1:
                     r_bin_new[i, j] = 1
@@ -97,14 +101,23 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     # Get names of selected features
     feature_names = data.columns[:-1][selected_indices].tolist()
 
+    precision = best_true_positives / (best_true_positives + best_false_positives)
+    recall = best_true_positives / (best_true_positives + best_false_negatives)
+    f1 = 2 * precision * recall / (precision + recall)
+    detect_rate = best_true_positives / (best_true_positives + best_false_negatives)
+
     # Print results
     print("===========")
     print("Classifier: ", classifier)
     print("Amount of features: ", len(feature_names))
     print("Selected features: ", feature_names)
-    print("Best fitness: ", best_fitness)
-    print("# False positives: ", len(best_false_positives))
-    print("# False negatives: ", len(best_false_negatives))
+    print("Best fitness: ", perc_format(best_fitness))
+    print("# False positives: ", best_false_positives)
+    print("# False negatives: ", best_false_negatives)
+    print("# True positives: ", best_true_positives)
+    print("# True negatives: ", best_true_negatives)
+    print("F1 Score: ", perc_format(f1))
+    print("Detection Rate: ", perc_format(detect_rate))
 
     return best_solution
 
