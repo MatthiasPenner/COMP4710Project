@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 import time
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_curve, auc, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+import matplotlib.pyplot as plt
 
 
 def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
@@ -34,6 +35,10 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     best_fitness = -np.inf
     best_solution = np.zeros(n)
 
+    # Stuff for AUC ROC calculation
+    fpr_list = []
+    tpr_list = []
+
     def perc_format(num):
         return '{:.2f}%'.format(round(num * 100, 2))
 
@@ -55,14 +60,21 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
         # Evaluate classifier accuracy on test set
         y_pred = clf.predict(X_test_selected)
         tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
 
-        return (tp + tn) / (tp + tn + fp + fn), fp, fn, tn, tp
+        # Calculate ROC AUC score and append to list
+        y_pred_proba = clf.predict_proba(X_test_selected)[:, 1]
+        roc_auc = roc_auc_score(y_test, y_pred_proba)
+        fpr_list.append(fp / (fp + tn))
+        tpr_list.append(tp / (tp + fn))
+
+        return accuracy, fp, fn, tn, tp, roc_auc
 
     # Main loop
     for t in range(iterations):
         # Calculate fitness of each solution
         for i in range(mass):
-            fitness_vals[i], fp, fn, tn, tp = fitness(r_bin[i, :])
+            fitness_vals[i], fp, fn, tn, tp, auc_roc = fitness(r_bin[i, :])
             if fitness_vals[i] > best_fitness:
                 best_fitness = fitness_vals[i]
                 best_solution = r_bin[i, :]
@@ -70,6 +82,7 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
                 best_false_negatives = fn
                 best_true_positives = tp
                 best_true_negatives = tn
+                best_auc_roc = auc_roc
 
         # Update gravity
         G = G0 * (1 - (t / iterations))
@@ -101,10 +114,13 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     # Get names of selected features
     feature_names = data.columns[:-1][selected_indices].tolist()
 
+    # Get interesting statistics
     precision = best_true_positives / (best_true_positives + best_false_positives)
     recall = best_true_positives / (best_true_positives + best_false_negatives)
     f1 = 2 * precision * recall / (precision + recall)
     detect_rate = best_true_positives / (best_true_positives + best_false_negatives)
+    FPR = best_false_positives / (best_false_positives + best_true_negatives)
+    TPR = best_true_positives / (best_true_positives + best_false_negatives)
 
     # Print results
     print("===========")
@@ -112,24 +128,36 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     print("Amount of features: ", len(feature_names))
     print("Selected features: ", feature_names)
     print("Best fitness: ", perc_format(best_fitness))
-    print("# False positives: ", best_false_positives)
-    print("# False negatives: ", best_false_negatives)
-    print("# True positives: ", best_true_positives)
-    print("# True negatives: ", best_true_negatives)
+    print("# False Positive Rate: ", FPR)
+    print("# True Positive Rate: ", TPR)
     print("F1 Score: ", perc_format(f1))
     print("Detection Rate: ", perc_format(detect_rate))
 
+    # Plot AUC ROC curve
+    fpr_list.sort()
+    tpr_list.sort()
+
+    plt.figure()
+    plt.plot(fpr_list, tpr_list, color='darkorange', lw=2, label='AUC = {:.4f}'.format(best_auc_roc))
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([min(fpr_list), max(fpr_list)])
+    plt.ylim([min(tpr_list), max(tpr_list)])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic Curve')
+    plt.legend(loc="lower right")
+    plt.show()
+
     return best_solution
 
-
 start_time = time.time()
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', iterations=100, G0=10, alpha=0.1, beta=10, classifier='dt')
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', iterations=500, G0=10, alpha=0.1, beta=10, classifier='dt')
 end_time = time.time()
 print("Time taken: {:.2f} seconds".format(end_time - start_time))
 
 print("===========")
 
-start_time = time.time()
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 'rf')
-end_time = time.time()
-print("Time taken: {:.2f} seconds".format(end_time - start_time))
+# start_time = time.time()
+# ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 'rf')
+# end_time = time.time()
+# print("Time taken: {:.2f} seconds".format(end_time - start_time))
