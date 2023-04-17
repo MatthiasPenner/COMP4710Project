@@ -9,7 +9,8 @@ from sklearn.tree import DecisionTreeClassifier
 import matplotlib.pyplot as plt
 
 
-def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
+def ibgsa(csv_path, iterations, G0, alpha, beta, agent_num, classifier, show_curve):
+    start_time = time.time()
     # Load data from CSV file
     data = pd.read_csv(csv_path)
 
@@ -19,19 +20,18 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
         if data[column].dtype == object:
             data[column] = le.fit_transform(data[column])
 
-    X = data.iloc[:, :-1].values
+    x = data.iloc[:, :-1].values
     y = data.iloc[:, -1].values
 
     # Split data into training and test sets
     test_size = 0.2
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=0)
 
     # Initialize population
-    mass = 20
-    n = X.shape[1]  # Total # Features
-    r = np.random.rand(mass, n)  # Random Number between mass + n features
+    n = x.shape[1]                      # Total # Features
+    r = np.random.rand(agent_num, n)    # Random Number between number of agents + n features
     r_bin = np.round(r)
-    fitness_vals = np.zeros(mass)
+    fitness_vals = np.zeros(agent_num)
     best_fitness = -np.inf
     best_solution = np.zeros(n)
 
@@ -43,9 +43,9 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
         return '{:.2f}%'.format(round(num * 100, 2))
 
     def fitness(solution):
-        # Extract selected features
-        X_train_selected = X_train[:, solution == 1]
-        X_test_selected = X_test[:, solution == 1]
+        # Extract selected features with the given input of which features
+        X_train_selected = x_train[:, solution == 1]
+        X_test_selected = x_test[:, solution == 1]
 
         # Train classifier depending on the type selected in IBGSA call
         if classifier == 'dt':
@@ -63,8 +63,8 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
         accuracy = (tp + tn) / (tp + tn + fp + fn)
 
         # Calculate ROC AUC score and append to list
-        y_pred_proba = clf.predict_proba(X_test_selected)[:, 1]
-        roc_auc = roc_auc_score(y_test, y_pred_proba)
+        y_pred_prob = clf.predict_proba(X_test_selected)[:, 1]
+        roc_auc = roc_auc_score(y_test, y_pred_prob)
         fpr_list.append(fp / (fp + tn))
         tpr_list.append(tp / (tp + fn))
 
@@ -73,27 +73,27 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     # Main loop
     for t in range(iterations):
         # Calculate fitness of each solution
-        for i in range(mass):
+        for i in range(agent_num):
             fitness_vals[i], fp, fn, tn, tp, auc_roc = fitness(r_bin[i, :])
             if fitness_vals[i] > best_fitness:
                 best_fitness = fitness_vals[i]
                 best_solution = r_bin[i, :]
-                best_false_positives = fp
-                best_false_negatives = fn
-                best_true_positives = tp
-                best_true_negatives = tn
+                best_fp = fp
+                best_fn = fn
+                best_tp = tp
+                best_tn = tn
                 best_auc_roc = auc_roc
 
         # Update gravity
         G = G0 * (1 - (t / iterations))
 
         # Update positions and calculate forces
-        r_bin_new = np.zeros((mass, n))
-        F = np.zeros((mass, n))
-        for i in range(mass):
+        r_bin_new = np.zeros((agent_num, n))
+        F = np.zeros((agent_num, n))
+        for i in range(agent_num):
             for j in range(n):
                 is_elite = fitness_vals[i]
-                for k in range(mass):
+                for k in range(agent_num):
                     if k != i:
                         d = np.sum((r_bin[i, j] - r_bin[k, j]) ** 2)
                         d_norm = np.sum(r_bin[i, :] != r_bin[k, :]) / max(np.sum(r_bin[i, :]), np.sum(r_bin[k, :]))
@@ -114,50 +114,53 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, classifier):
     # Get names of selected features
     feature_names = data.columns[:-1][selected_indices].tolist()
 
-    # Get interesting statistics
-    precision = best_true_positives / (best_true_positives + best_false_positives)
-    recall = best_true_positives / (best_true_positives + best_false_negatives)
+    # Calc some interesting statistics
+    precision = best_tp / (best_tp + best_fp)
+    recall = best_tp / (best_tp + best_fn)
     f1 = 2 * precision * recall / (precision + recall)
-    detect_rate = best_true_positives / (best_true_positives + best_false_negatives)
-    FPR = best_false_positives / (best_false_positives + best_true_negatives)
-    TPR = best_true_positives / (best_true_positives + best_false_negatives)
+    detect_rate = best_tp / (best_tp + best_fn)
+    fpr = best_fp / (best_fp + best_tn)
+    fnr = best_fn / (best_fn + best_tp)
+
+    end_time = time.time()
 
     # Print results
-    print("===========")
-    print("Classifier: ", classifier)
-    print("Amount of features: ", len(feature_names))
-    print("Selected features: ", feature_names)
-    print("Best fitness: ", perc_format(best_fitness))
-    print("# False Positive Rate: ", FPR)
-    print("# True Positive Rate: ", TPR)
+    print("=================================")
+    print("Time taken: {:.2f} seconds".format(end_time - start_time))
+    if classifier == 'dt':
+        print("Classifier: Decision Tree")
+    else:
+        print("Classifier: Random Forest")
+    print("Amount of Features: ", len(feature_names))
+    print("Selected Features: ", feature_names)
+    print("Best Fitness: ", perc_format(best_fitness))
+    print("# False Positive Rate: ", perc_format(fpr))
+    print("# False Negative Rate: ", perc_format(fnr))
     print("F1 Score: ", perc_format(f1))
     print("Detection Rate: ", perc_format(detect_rate))
+    print("AUC Score: ", perc_format(best_auc_roc))
 
-    # Plot AUC ROC curve
-    fpr_list.sort()
-    tpr_list.sort()
+    if show_curve:
+        # Plot AUC ROC curve
+        fpr_list.sort()
+        tpr_list.sort()
 
-    plt.figure()
-    plt.plot(fpr_list, tpr_list, color='darkorange', lw=2, label='AUC = {:.4f}'.format(best_auc_roc))
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-    plt.xlim([min(fpr_list), max(fpr_list)])
-    plt.ylim([min(tpr_list), max(tpr_list)])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic Curve')
-    plt.legend(loc="lower right")
-    plt.show()
+        plt.figure()
+        plt.plot(fpr_list, tpr_list, color='darkorange', lw=2, label='AUC = {:.4f}'.format(best_auc_roc))
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([min(fpr_list), max(fpr_list)])
+        plt.ylim([min(tpr_list), max(tpr_list)])
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.title("Receiver Operating Characteristic Curve")
+        plt.legend(loc="lower right")
+        plt.show()
+
+    print("=================================")
 
     return best_solution
 
-start_time = time.time()
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', iterations=500, G0=10, alpha=0.1, beta=10, classifier='dt')
-end_time = time.time()
-print("Time taken: {:.2f} seconds".format(end_time - start_time))
 
-print("===========")
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'dt', False)
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'rf', False)
 
-# start_time = time.time()
-# ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 'rf')
-# end_time = time.time()
-# print("Time taken: {:.2f} seconds".format(end_time - start_time))
