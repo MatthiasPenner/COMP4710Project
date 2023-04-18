@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 MAX_VALUE = 2
 USE_RANDOM_FOREST = False
+SHOW_CURVE = False
 
 def perc_format(num):
         return '{:.2f}%'.format(round(num * 100, 2))
@@ -32,14 +33,16 @@ def report(y_test, y_pred):
 
     dr = tp/(tp+fn)
     fpr = fp/(fp+tn)
+    fnr = fn/(fn+tp)
     acc = (tp+tn)/(tp+tn+fp+fn)
     precision = tp/(tp+fp)
     recall = tp/(tp+fn)
     f1 = 2*precision*recall/(precision+recall)
-    print(f"DR: {dr} FPR: {fpr} Acc: {perc_format(acc)} F1 Score: {f1}")
+    print(f"DR: {dr} FPR: {fpr} FNR: {fnr} Acc: {perc_format(acc)} F1 Score: {f1}")
     print(f"FP: {fp} TP: {tp} FN: {fn} TN: {tn}")
     auc = np.round(roc_auc_score(y_test, y_pred), 3)
     print("Auc is {}". format(auc))
+    return dr, fpr, fnr, f1
 
 
 def ibgsa(X, y, n_agents, max_iter, G=6.6743, eps=0.01, k1 = 3, k2 = 13):
@@ -163,6 +166,10 @@ df = df.apply(lambda col: le.fit_transform(col) if col.dtype == object else col)
 
 kf = KFold(n_splits=10, shuffle = True)
 scores = []
+drs = []
+fprs = []
+fnrs = []
+f1s = []
 
 # Separate features and target variable
 X = df.drop('Class', axis=1)
@@ -182,7 +189,7 @@ for train_index, test_index in kf.split(X):
     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
     # Run IBGSA to select relevant features
-    selected_features, selected_classifier, best_y_pred, best_y_test, best_fitness = ibgsa(X_train, y_train, n_agents=50, max_iter=10)
+    selected_features, selected_classifier, best_y_pred, best_y_test, best_fitness = ibgsa(X_train, y_train, n_agents=50, max_iter=100)
 
     # Print selected features
     print("Selected Features:")
@@ -198,7 +205,7 @@ for train_index, test_index in kf.split(X):
 
     # Output report about fold
     print("Fold Report:")
-    report(y_test, y_pred)
+    dr, fprFromReport, fnr, f1 = report(y_test, y_pred)
 
     # ax = plt.gca()
     # rfc_disp = RocCurveDisplay.from_estimator(selected_classifier, selected_X_test, y_test, ax=ax, alpha=0.8)
@@ -210,6 +217,11 @@ for train_index, test_index in kf.split(X):
     
 
     scores.append(accuracy)
+    drs.append(dr)
+    fnrs.append(fnr)
+    fprs.append(fprFromReport)
+    f1s.append(f1)
+
     if best_fitness > max_fitness:
         max_fitness = best_fitness
         max_y_test = best_y_test
@@ -221,17 +233,19 @@ for train_index, test_index in kf.split(X):
     fold_number += 1
 
 print("=====FINAL RESULTS=====")
-average_score = np.mean(scores)
-print(f"Using classifier {'Random forest' if USE_RANDOM_FOREST else 'Decision Tree'}" )
-print("Average accuracy:", average_score)
 
 print("Best Report on fitness")
 report(max_y_test, max_y_pred)
+
+print(f"Using classifier {'Random forest' if USE_RANDOM_FOREST else 'Decision Tree'}" )
+print("Average Results:")
+print(f"DR: {np.mean(drs)} FPR: {np.mean(fprs)} FNR: {np.mean(fnrs)} F1 Score: {np.mean(f1s)} Acc: {perc_format(np.mean(scores))}")
 
 print("!!! %s seconds in total !!!" % (time.time() - program_start_time))
 
 tprs = np.array(tprs)
 mean_tprs = tprs.mean(axis=0)
 plt.plot(base_fpr, mean_tprs)
-plt.savefig('IBGSA(paper).png')
+if SHOW_CURVE:
+    plt.show()
 
