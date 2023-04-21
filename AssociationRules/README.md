@@ -6,4 +6,4 @@ The four approaches used four different datasets:
   4. Labels_QCut_Structural.csv = Structural Features QCut Approach
 
 To run a specific approach simply replace the filename on line 4.
-Run ```python ManualCounting.py```
+Run ```python AssociationRules.py```
