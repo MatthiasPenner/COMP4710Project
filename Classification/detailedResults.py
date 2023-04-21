@@ -1,24 +1,19 @@
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_selection import RFE, RFECV
+from sklearn.feature_selection import RFE
 from sklearn.tree import DecisionTreeClassifier
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import Lasso
-from sklearn.feature_selection import SelectFromModel
-from sklearn.feature_selection import SelectKBest, chi2
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import ExtraTreesClassifier, AdaBoostClassifier, GradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.feature_selection import SelectKBest, f_classif
 from xgboost import XGBClassifier
 import time
 import matplotlib.pyplot as plt
 from sklearn.metrics import RocCurveDisplay
+from sklearn import metrics
+
 
 startTime = time.time()
 
@@ -37,12 +32,9 @@ y = data['Class']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 
-
-lr = LogisticRegression(solver='newton-cg', max_iter=20000)
 dt = DecisionTreeClassifier(random_state=42)
 rf = RandomForestClassifier(n_estimators=100, random_state=42)
 ext = ExtraTreesClassifier(random_state=42)
-ada = AdaBoostClassifier(random_state=42)
 gb = GradientBoostingClassifier(random_state=42)
 
 def report(y_test, y_pred):
@@ -83,28 +75,26 @@ print("Time: "+str(time.time()-startTime))
 print("Report for Gradient Boosting with RFE (13 features)")
 report(y_test, y_pred)
 ax = plt.gca()
-rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8)
-#rfc_disp.plot(ax=ax, alpha=0.8)
-#plt.show()
+
+fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+roc_auc = metrics.auc(fpr, tpr)
+rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8, name='_')
+rfc_disp.line_.remove()
+rfc_disp.estimator_name = 'Gradient Boosting + RFE AUC={:.4f}'.format(roc_auc)
+rfc_disp.roc_auc = None
+rfc_disp.plot(ax=ax, alpha=0.8, color='green')
+
 
 startTime = time.time()
 
 xgb = XGBClassifier()
-            
 xgb.fit(X_train, y_train)
-
 feature_importances = xgb.feature_importances_
-
 sorted_idx = np.argsort(feature_importances)[::-1]
-
 selected_features = sorted_idx[:17].tolist()
-            
 X_train_selected = X_train.iloc[:, selected_features]
-
 X_test_selected = X_test.iloc[:, selected_features]
-
 ext.fit(X_train_selected, y_train)
-
 y_pred = ext.predict(X_test_selected)
 
 
@@ -115,28 +105,24 @@ print("Report for Extra Trees with XGBoost feature selection (17 features)")
 report(y_test, y_pred)
 
 ax = plt.gca()
-rfc_disp = RocCurveDisplay.from_estimator(ext, X_test_selected, y_test, ax=ax, alpha=0.8)
-#rfc_disp.plot(ax=ax, alpha=0.8)
-#plt.show()
+fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+roc_auc = metrics.auc(fpr, tpr)
+rfc_disp = RocCurveDisplay.from_estimator(ext, X_test_selected, y_test, ax=ax, alpha=0.8, name='_')
+rfc_disp.line_.remove()
+rfc_disp.estimator_name = 'Extra Trees with XGBoost feature selection AUC={:.4f}'.format(roc_auc)
+rfc_disp.roc_auc = None
+rfc_disp.plot(ax=ax, alpha=0.8, color='red')
 
 startTime = time.time()
 
 xgb = XGBClassifier()
-
 xgb.fit(X_train, y_train)
-
 feature_importances = xgb.feature_importances_
-
 sorted_idx = np.argsort(feature_importances)[::-1]
-
 selected_features = sorted_idx[:17].tolist()
-            
 X_train_selected = X_train.iloc[:, selected_features]
-
 X_test_selected = X_test.iloc[:, selected_features]
-
 rf.fit(X_train_selected, y_train)
-
 y_pred = rf.predict(X_test_selected)
 
 
@@ -147,9 +133,15 @@ print("Report for Random Forest with XGBoost feature selection (17 features)")
 report(y_test, y_pred)
 
 ax = plt.gca()
-rfc_disp = RocCurveDisplay.from_estimator(rf, X_test_selected, y_test, ax=ax, alpha=0.8)
-#rfc_disp.plot(ax=ax, alpha=0.8)
-#plt.show()
+
+fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+roc_auc = metrics.auc(fpr, tpr)
+rfc_disp = RocCurveDisplay.from_estimator(rf, X_test_selected, y_test, ax=ax, alpha=0.8, name='_')
+rfc_disp.line_.remove()
+rfc_disp.estimator_name = 'Random Forest with XGBoost feature selection AUC={:.4f}'.format(roc_auc)
+rfc_disp.roc_auc = None
+rfc_disp.plot(ax=ax, alpha=0.8, color='orange')
+
 
 startTime = time.time()
 rfe = RFE(rf, n_features_to_select=29)
@@ -159,15 +151,21 @@ rfe.fit(X_train, y_train)
 y_pred = rfe.predict(X_test)
 
 
-print("Time: "+str(time.time()-startTime))
+print("Time for Random Forest with RFE: "+str(time.time()-startTime))
 print("Report for Random Forest with RFE (29 features)")
 
 report(y_test, y_pred)
 
 ax = plt.gca()
-rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8)
-#rfc_disp.plot(ax=ax, alpha=0.8)
-#plt.show()
+
+fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+roc_auc = metrics.auc(fpr, tpr)
+rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8, name='_')
+rfc_disp.line_.remove()
+rfc_disp.estimator_name = 'Random Forest with RFE AUC={:.4f}'.format(roc_auc)
+rfc_disp.roc_auc = None
+rfc_disp.plot(ax=ax, alpha=0.8, color='blue')
+
 
 startTime = time.time()
 rfe = RFE(ext, n_features_to_select=16)
@@ -182,6 +180,18 @@ print("Report for Extra Trees with RFE (16 features)")
 report(y_test, y_pred)
 
 ax = plt.gca()
-rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8)
-#rfc_disp.plot(ax=ax, alpha=0.8)
+
+fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+roc_auc = metrics.auc(fpr, tpr)
+rfc_disp = RocCurveDisplay.from_estimator(rfe, X_test, y_test, ax=ax, alpha=0.8, name='_')
+rfc_disp.line_.remove()
+rfc_disp.estimator_name = 'Extra Trees with RFE AUC={:.4f}'.format(roc_auc)
+rfc_disp.roc_auc = None
+rfc_disp.plot(ax=ax, alpha=0.8, color='green')
+
+plt.xlim([0, 0.055])
+plt.ylim([0.97, 1])
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver Operating Characteristic Curve")
 plt.show()
