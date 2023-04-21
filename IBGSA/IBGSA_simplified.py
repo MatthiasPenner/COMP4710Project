@@ -161,6 +161,6 @@ def ibgsa(csv_path, iterations, G0, alpha, beta, agent_num, classifier, show_cur
     return best_solution
 
 
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'dt', False)
-ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'rf', False)
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'dt', True)
+ibgsa_result = ibgsa('PDFMalware2022v2.csv', 100, 10, 0.1, 10, 20, 'rf', True)
 
