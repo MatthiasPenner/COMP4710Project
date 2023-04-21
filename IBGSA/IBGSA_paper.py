@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 
 MAX_VALUE = 2
-USE_RANDOM_FOREST = False
-SHOW_CURVE = False
+USE_RANDOM_FOREST = True
+SHOW_CURVE = True
 
 def perc_format(num):
         return '{:.2f}%'.format(round(num * 100, 2))
