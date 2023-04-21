@@ -1,4 +1,4 @@
-﻿# Basic Implementation (IBGSA_basic.py)
+﻿# Simplified Implementation (IBGSA_simplified.py)
 Implementation of IBGSA feature selector + two choices of basic classifiers. Elitism and normalization of Euclidean distance is included. Results are listed in console.
 
 ## Parameters
@@ -18,9 +18,9 @@ Implementation of IBGSA feature selector + two choices of basic classifiers. Eli
 The file has 2 calls that will give you results for both a decision tree and random forest classifier run, using the basic parameters we used for all our test runs, and with the curve graphics turned off. The calls assume the csv file is located in the same folder as the .py
 
 ## To run
-Run python IBGSA_basic.py after installing necessary dependencies
+Run python IBGSA_simplified.py after installing necessary dependencies
 
-# Basic Implementation (IBGSA_paper.py)
+# Paper Implementation (IBGSA_paper.py)
 Implementation of the pseudocode presented in Sayed et al. 's paper.
 
 ## Current State
